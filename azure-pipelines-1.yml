@@ -1,0 +1,65 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- master  
+
+variables:
+  buildConfiguration: 'Release'
+  azureSubscription: 'MyAzureConnection'  
+  webAppName: 'Self-hosted'   
+  resourceGroupName: 'webappdeployment' 
+
+stages:
+- stage: Build
+  jobs:
+  - job: Build
+    pool:
+      vmImage: 'windows-latest' 
+    steps:
+    - checkout: self  
+
+    - task: NuGetCommand@2
+      displayName: 'Restore NuGet Packages'
+      inputs:
+        restoreSolution: '**/*.sln'
+
+    # Build the .NET Framework solution
+    - task: VSBuild@1
+      displayName: 'Build Solution'
+      inputs:
+        solution: '**/*.sln'
+        platform: 'Any CPU'
+        configuration: $(buildConfiguration)
+        msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(Build.ArtifactStagingDirectory)"'
+
+    # Publish the build artifact (ZIP file)
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish Artifact'
+      inputs:
+        targetPath: '$(Build.ArtifactStagingDirectory)'
+        artifactName: 'drop'
+
+- stage: Deploy
+  jobs:
+  - job: Deploy
+    pool:
+      vmImage: 'windows-latest'
+    steps:
+    # Download the artifact from the Build stage
+    - task: DownloadPipelineArtifact@2
+      displayName: 'Download Artifact'
+      inputs:
+        artifactName: 'drop'
+        targetPath: '$(Pipeline.Workspace)/drop'
+
+    # Deploy to Azure Web App
+    - task: AzureWebApp@1
+      displayName: 'Deploy to Azure Web App'
+      inputs:
+        azureSubscription: $(azureSubscription)
+        appName: $(webAppName)
+        resourceGroupName: $(resourceGroupName)
+        package: '$(Pipeline.Workspace)/drop/**/*.zip'
