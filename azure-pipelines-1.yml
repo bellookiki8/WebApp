@@ -55,11 +55,13 @@ stages:
         artifactName: 'drop'
         targetPath: '$(Pipeline.Workspace)/drop'
 
-    # Deploy to Azure Web App
-    - task: AzureWebApp@1
+ # Deploy to Azure Web App using the correct task
+    - task: AzureRmWebAppDeployment@4
       displayName: 'Deploy to Azure Web App'
       inputs:
+        ConnectionType: 'AzureRM'
         azureSubscription: $(azureSubscription)
-        appName: $(webAppName)
-        resourceGroupName: $(resourceGroupName)
+        appType: 'webApp'
+        WebAppName: $(webAppName)
+        ResourceGroupName: $(resourceGroupName)
         package: '$(Pipeline.Workspace)/drop/**/*.zip'
